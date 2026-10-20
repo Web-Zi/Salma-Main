@@ -186,102 +186,42 @@ function renderReportsUI(reports) {
 }
 
 // =========================================================================
-// 🖨️ OPEN HTML REPORT MODAL (100% BULLETPROOF FOR APK & WEBVIEW)
+// 🖨️ WEBINTOAPP APK-FRIENDLY REPORT EXPORT
 // =========================================================================
 function openReportView(dataUri) {
     if (!dataUri) return alert("Report data incomplete.");
 
     try {
+        // 1. Clean the base64 data
         const base64Part = dataUri.includes(",") ? dataUri.split(',')[1] : dataUri;
         let htmlContent = decodeURIComponent(escape(atob(base64Part)));
 
-        // Inject Print & Close Styles
-        const printScriptAndStyles = `
-            <style>
-                body { margin: 0; padding: 20px; font-family: system-ui, sans-serif; background: #fff; color: #000; }
-                .no-print { display: flex; gap: 10px; justify-content: center; margin: 20px 0; }
-                .report-btn { padding: 12px 24px; font-size: 15px; font-weight: bold; border: none; border-radius: 8px; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.15); }
-                .btn-print { background: #2563eb; color: white; }
-                .btn-close { background: #64748b; color: white; }
-                @media print {
-                    .no-print { display: none !important; }
-                    body { padding: 0 !important; }
-                }
-            </style>
-            <script>
-                function doPrint() {
-                    window.print();
-                }
-                function closeReportModal() {
-                    const modal = window.parent.document.getElementById('salma-report-modal');
-                    if (modal) modal.remove();
-                }
-            </script>
-        `;
+        // 2. Create a clean Blob and temporary Object URL
+        const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
+        const blobUrl = URL.createObjectURL(blob);
 
-        const actionButtonsHtml = `
-            <div class="no-print">
-                <button class="report-btn btn-print" onclick="doPrint()">🖨️ طباعة / حفظ PDF</button>
-                <button class="report-btn btn-close" onclick="closeReportModal()">❌ إغلاق</button>
-            </div>
-        `;
-
-        // Inject into HTML content
-        if (htmlContent.includes("</head>")) {
-            htmlContent = htmlContent.replace("</head>", `${printScriptAndStyles}</head>`);
-        } else {
-            htmlContent = printScriptAndStyles + htmlContent;
-        }
-
-        if (htmlContent.includes("</body>")) {
-            htmlContent = htmlContent.replace("</body>", `${actionButtonsHtml}</body>`);
-        } else {
-            htmlContent += actionButtonsHtml;
-        }
-
-        // Remove any existing modal if already open
-        const existingModal = document.getElementById('salma-report-modal');
-        if (existingModal) existingModal.remove();
-
-        // Create a full-screen overlay container right inside the app page
-        const modalContainer = document.createElement('div');
-        modalContainer.id = 'salma-report-modal';
-        modalContainer.style.cssText = `
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            background: rgba(0, 0, 0, 0.85);
-            z-index: 999999;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-        `;
-
-        // Create an iframe to safely sandbox and render the report HTML
-        const iframe = document.createElement('iframe');
-        iframe.style.cssText = `
-            width: 100%;
-            height: 100%;
-            border: none;
-            background: white;
-        `;
-
-        modalContainer.appendChild(iframe);
-        document.body.appendChild(modalContainer);
-
-        // Write the content directly into the iframe
-        iframe.contentDocument.open();
-        iframe.contentDocument.write(htmlContent);
-        iframe.contentDocument.close();
+        // 3. Create a hidden temporary link and programmatically click it.
+        // WebIntoApp's wrapper often catches explicit anchor clicks with 'download' attributes better than window navigation.
+        const downloadLink = document.createElement('a');
+        downloadLink.href = blobUrl;
+        downloadLink.download = 'Salma_Inventory_Report.html';
+        document.body.appendChild(downloadLink);
+        
+        // Trigger click
+        downloadLink.click();
+        
+        // Clean up
+        setTimeout(() => {
+            document.body.removeChild(downloadLink);
+            URL.revokeObjectURL(blobUrl);
+        }, 100);
 
     } catch (e) {
         console.error(e);
-        alert("Could not load report view.");
+        // Fallback: If blob fails, force open the raw data URI directly
+        window.location.href = dataUri;
     }
 }
-
 // Toggle Checkbox Status
 async function toggleReportCheck(id) {
     try {
