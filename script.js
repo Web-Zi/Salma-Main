@@ -186,39 +186,27 @@ function renderReportsUI(reports) {
 }
 
 // =========================================================================
-// 🖨️ WEBINTOAPP APK-FRIENDLY REPORT EXPORT
+// 🔗 OPEN REPORT LIKE A STANDARD BROWSER LINK
 // =========================================================================
 function openReportView(dataUri) {
     if (!dataUri) return alert("Report data incomplete.");
 
+    // If it's a regular http/https URL link:
+    if (dataUri.startsWith('http')) {
+        window.open(dataUri, '_blank');
+        return;
+    }
+
+    // If it's a Data URI (Base64 HTML/PDF), force it to open in a new tab/browser view
     try {
-        // 1. Clean the base64 data
-        const base64Part = dataUri.includes(",") ? dataUri.split(',')[1] : dataUri;
-        let htmlContent = decodeURIComponent(escape(atob(base64Part)));
-
-        // 2. Create a clean Blob and temporary Object URL
-        const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
-        const blobUrl = URL.createObjectURL(blob);
-
-        // 3. Create a hidden temporary link and programmatically click it.
-        // WebIntoApp's wrapper often catches explicit anchor clicks with 'download' attributes better than window navigation.
-        const downloadLink = document.createElement('a');
-        downloadLink.href = blobUrl;
-        downloadLink.download = 'Salma_Inventory_Report.html';
-        document.body.appendChild(downloadLink);
-        
-        // Trigger click
-        downloadLink.click();
-        
-        // Clean up
-        setTimeout(() => {
-            document.body.removeChild(downloadLink);
-            URL.revokeObjectURL(blobUrl);
-        }, 100);
-
+        const a = document.createElement('a');
+        a.href = dataUri;
+        a.target = '_blank'; // WebIntoApp catches this and opens it in the system browser
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
     } catch (e) {
-        console.error(e);
-        // Fallback: If blob fails, force open the raw data URI directly
+        // Ultimate fallback if anything blocks it
         window.location.href = dataUri;
     }
 }
